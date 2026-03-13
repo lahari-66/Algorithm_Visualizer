@@ -5,6 +5,50 @@
   overflow: hidden;
 }
 
+@keyframes floaty {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(56, 189, 248, 0.0);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(56, 189, 248, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(56, 189, 248, 0.0);
+  }
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
 .app::before,
 .app::after {
   content: '';
@@ -21,12 +65,14 @@
   background: radial-gradient(circle, rgba(47, 214, 161, 0.4), transparent 70%);
   top: -120px;
   right: -80px;
+  animation: floaty 9s ease-in-out infinite;
 }
 
 .app::after {
   background: radial-gradient(circle, rgba(59, 130, 246, 0.45), transparent 70%);
   bottom: -140px;
   left: -140px;
+  animation: floaty 11s ease-in-out infinite;
 }
 
 .navbar {
@@ -37,6 +83,7 @@
   margin-bottom: 32px;
   position: relative;
   z-index: 1;
+  animation: slideIn 0.6s ease both;
 }
 
 .navbar-kicker {
@@ -73,6 +120,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text);
+  animation: glowPulse 6s ease-in-out infinite;
 }
 
 .layout {
@@ -84,6 +132,7 @@
   gap: 20px;
   position: relative;
   z-index: 1;
+  animation: slideIn 0.8s ease both;
 }
 
 .panel {
@@ -93,6 +142,12 @@
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
   padding: 24px;
   backdrop-filter: blur(18px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.panel:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.55);
 }
 
 .control {
@@ -143,6 +198,15 @@ textarea {
   padding: 10px 12px;
   font-family: inherit;
   font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 
 textarea {
@@ -168,7 +232,7 @@ input[type='range'] {
   color: var(--text);
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
 }
 
 .button:hover {
@@ -184,8 +248,10 @@ input[type='range'] {
 }
 
 .button.primary {
-  background: linear-gradient(120deg, #14b8a6, #3b82f6);
+  background: linear-gradient(120deg, #14b8a6, #3b82f6, #38bdf8);
+  background-size: 200% 200%;
   color: #0b1120;
+  animation: shimmer 4s ease infinite;
 }
 
 .button.ghost {
@@ -199,6 +265,7 @@ input[type='range'] {
   padding: 10px 12px;
   border-radius: 12px;
   font-size: 13px;
+  animation: slideIn 0.5s ease both;
 }
 
 .divider {
@@ -278,6 +345,16 @@ input[type='range'] {
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.2);
   overflow: hidden;
+  position: relative;
+}
+
+.bar-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top, rgba(148, 163, 184, 0.15), transparent 45%);
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 .array-bar {
@@ -290,6 +367,7 @@ input[type='range'] {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  animation: slideIn 0.6s ease both;
 }
 
 .array-bar .bar-value {
@@ -316,15 +394,18 @@ input[type='range'] {
 .array-bar.swap {
   background: linear-gradient(180deg, #fb7185, #f43f5e);
   transform: translateY(-8px);
+  box-shadow: 0 10px 24px rgba(244, 63, 94, 0.35);
 }
 
 .array-bar.sorted {
   background: linear-gradient(180deg, #34d399, #10b981);
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.3);
 }
 
 .array-bar.found {
   background: linear-gradient(180deg, #38bdf8, #0ea5e9);
   transform: translateY(-10px);
+  box-shadow: 0 12px 26px rgba(56, 189, 248, 0.4);
 }
 
 .explanation-panel {
@@ -338,6 +419,7 @@ input[type='range'] {
   border-radius: 16px;
   background: rgba(30, 64, 175, 0.2);
   border: 1px solid rgba(59, 130, 246, 0.4);
+  animation: slideIn 0.6s ease both;
 }
 
 .current-step span {
@@ -367,6 +449,7 @@ input[type='range'] {
 .step.active {
   border-color: rgba(59, 130, 246, 0.6);
   box-shadow: 0 8px 24px rgba(30, 64, 175, 0.35);
+  transform: translateY(-2px);
 }
 
 .step span {
@@ -398,5 +481,12 @@ input[type='range'] {
 
   .bar-stage {
     height: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }
