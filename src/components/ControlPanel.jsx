@@ -52,28 +52,35 @@ function ControlPanel({
       </div>
 
       <div className="control-group">
-        <label htmlFor="size">Array Size: {arraySize}</label>
-        <input
-          id="size"
-          type="range"
-          min="8"
-          max="60"
-          value={arraySize}
-          onChange={(event) => setArraySize(Number(event.target.value))}
-          disabled={isRunning}
-        />
+        <label htmlFor="size">Array Size</label>
+        <div className="size-row">
+          <input
+            id="size"
+            type="number"
+            min="5"
+            max="60"
+            value={arraySize}
+            onChange={(event) => setArraySize(Number(event.target.value))}
+            disabled={isRunning}
+          />
+          <span className="size-hint">5 - 60</span>
+        </div>
       </div>
 
       <div className="control-group">
-        <label htmlFor="speed">Speed: {speedLabel}</label>
-        <input
-          id="speed"
-          type="range"
-          min="0"
-          max="3"
-          value={speedLevel}
-          onChange={(event) => setSpeedLevel(Number(event.target.value))}
-        />
+        <label>Speed: {speedLabel}</label>
+        <div className="speed-buttons">
+          {['Slow', 'Medium', 'Fast', 'Blaze'].map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              className={`button speed ${speedLevel === index ? 'active' : ''}`}
+              onClick={() => setSpeedLevel(index)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="control-group">
@@ -115,7 +122,7 @@ function ControlPanel({
           {isPaused ? 'Resume' : 'Pause'}
         </button>
         <button className="button" onClick={onGenerate} disabled={isRunning}>
-          Generate
+          Generate Random
         </button>
         <button className="button ghost" onClick={onReset}>
           Reset
