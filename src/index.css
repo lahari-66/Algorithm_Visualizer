@@ -1,0 +1,49 @@
+:root {
+  --bg: #0b1120;
+  --surface: #0f172a;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #14b8a6;
+  --heading: 'Space Grotesk', 'Sora', 'Segoe UI', sans-serif;
+  --body: 'DM Sans', 'Outfit', 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', 'Cascadia Code', monospace;
+
+  font-family: var(--body);
+  color: var(--text);
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), var(--bg));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  color: var(--text);
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--body);
+}
