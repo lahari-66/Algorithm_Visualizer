@@ -42,6 +42,7 @@ const PSEUDOCODE = {
     '  if arr[mid] == target return mid',
     '  if arr[mid] < target: left = mid + 1',
     '  else right = mid - 1',
+    'return not found',
   ],
 }
 
@@ -49,24 +50,22 @@ function PseudocodePanel({ algorithmKey, currentLine }) {
   const lines = PSEUDOCODE[algorithmKey] ?? []
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-100">Pseudocode</h2>
-        <p className="text-sm text-slate-400">Current line highlights as the algorithm runs.</p>
+    <div className="pseudocode-panel">
+      <div className="pseudocode-header">
+        <h2>Pseudocode</h2>
+        <p>Current line highlights as the algorithm runs.</p>
       </div>
-      <div className="rounded-2xl border border-slate-800/70 bg-slate-950/60 p-4 font-mono text-sm">
+      <div className="pseudocode-box">
         {lines.map((line, index) => {
           const lineNumber = index + 1
           const isActive = currentLine === lineNumber
           return (
             <div
               key={`${algorithmKey}-${lineNumber}`}
-              className={`flex gap-3 rounded-lg px-2 py-1 ${
-                isActive ? 'bg-cyan-500/15 text-cyan-200' : 'text-slate-300'
-              }`}
+              className={`pseudocode-line ${isActive ? 'active' : ''}`}
             >
-              <span className="w-6 text-right text-xs text-slate-500">{lineNumber}</span>
-              <span>{line}</span>
+              <span className="pseudocode-line-number">{lineNumber}</span>
+              <span className="pseudocode-line-text">{line}</span>
             </div>
           )
         })}

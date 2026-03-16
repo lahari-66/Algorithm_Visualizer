@@ -20,6 +20,14 @@ function ControlPanel({
   setTargetValue,
   algorithmInfo,
   notice,
+  soundEnabled,
+  setSoundEnabled,
+  soundVolume,
+  setSoundVolume,
+  focusMode,
+  setFocusMode,
+  showHeapDetails,
+  setShowHeapDetails,
 }) {
   const isSearch = algorithmInfo.type === 'search'
 
@@ -82,6 +90,53 @@ function ControlPanel({
           ))}
         </div>
       </div>
+
+      <div className="control-group">
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={soundEnabled}
+            onChange={(event) => setSoundEnabled(event.target.checked)}
+          />
+          <span>Sound effects</span>
+        </label>
+        <div className="volume-row">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={soundVolume}
+            onChange={(event) => setSoundVolume(Number(event.target.value))}
+            disabled={!soundEnabled}
+          />
+          <span className="size-hint">Volume</span>
+        </div>
+      </div>
+
+      <div className="control-group">
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={focusMode}
+            onChange={(event) => setFocusMode(event.target.checked)}
+          />
+          <span>Focus mode</span>
+        </label>
+      </div>
+
+      {algorithmKey === 'heap' ? (
+        <div className="control-group">
+          <label className="toggle-row">
+            <input
+              type="checkbox"
+              checked={showHeapDetails}
+              onChange={(event) => setShowHeapDetails(event.target.checked)}
+            />
+            <span>Show full heap tree</span>
+          </label>
+        </div>
+      ) : null}
 
       <div className="control-group">
         <label htmlFor="custom">Custom Input</label>

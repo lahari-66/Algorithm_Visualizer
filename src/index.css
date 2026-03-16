@@ -1,70 +1,67 @@
+/* ── Theme variables (defaults = dark) ─────────────────────────── */
 :root {
   --bg: #0b1120;
   --surface: #0f172a;
+  --surface2: #1e293b;
+  --border: rgba(148,163,184,0.18);
   --text: #e2e8f0;
   --muted: #94a3b8;
-  --accent: #14b8a6;
+  --accent: #38bdf8;
+  --accent2: #14b8a6;
+  --glow: rgba(56,189,248,0.35);
+  --bar-default: linear-gradient(180deg,#3b82f6,#1d4ed8);
+  --compare: #fbbf24;
+  --swap: #fb7185;
+  --sorted: #34d399;
+  --found: #38bdf8;
+
   --heading: 'Space Grotesk', 'Sora', 'Segoe UI', sans-serif;
   --body: 'DM Sans', 'Outfit', 'Segoe UI', sans-serif;
   --mono: 'IBM Plex Mono', 'Cascadia Code', monospace;
-  --accent-strong: #38bdf8;
-  --glow: rgba(56, 189, 248, 0.4);
 
   font-family: var(--body);
   color: var(--text);
-  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), var(--bg));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  margin: 0;
   background: var(--bg);
+  min-height: 100vh;
 }
 
+/* Subtle grid background */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08), transparent 40%),
-    radial-gradient(circle at 80% 10%, rgba(20, 184, 166, 0.08), transparent 45%),
-    radial-gradient(circle at 70% 80%, rgba(244, 114, 182, 0.06), transparent 45%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(148, 163, 184, 0.05) 0,
-      rgba(148, 163, 184, 0.05) 1px,
-      transparent 1px,
-      transparent 6px
-    );
+    radial-gradient(circle at 15% 20%, rgba(56,189,248,0.07), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(20,184,166,0.07), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(148,163,184,0.04) 0, rgba(148,163,184,0.04) 1px, transparent 1px, transparent 8px);
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
-#root {
-  min-height: 100vh;
+#root { min-height: 100vh; position: relative; z-index: 1; }
+
+h1,h2,h3,h4 { font-family: var(--heading); color: var(--text); }
+p { margin: 0; }
+button, input, select, textarea { font-family: var(--body); }
+
+/* Light theme overrides */
+[data-theme="light"] body::before {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(2,132,199,0.06), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(13,148,136,0.06), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(100,116,139,0.06) 0, rgba(100,116,139,0.06) 1px, transparent 1px, transparent 8px);
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--heading);
-  color: var(--text);
-}
-
-p {
-  margin: 0;
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: var(--body);
+/* Matrix theme font */
+[data-theme="matrix"] { font-family: 'IBM Plex Mono', monospace; }
+[data-theme="matrix"] h1,[data-theme="matrix"] h2,[data-theme="matrix"] h3 {
+  font-family: 'IBM Plex Mono', monospace;
 }

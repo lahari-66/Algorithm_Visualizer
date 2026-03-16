@@ -1,392 +1,225 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Navbar from '../components/Navbar.jsx'
-import ControlPanel from '../components/ControlPanel.jsx'
-import Visualizer from '../components/Visualizer.jsx'
-import ExplanationPanel from '../components/ExplanationPanel.jsx'
-import { generateRandomArray, parseInputToArray } from '../utils/arrayGenerator.js'
-import { sleep } from '../utils/animationHelper.js'
+import InputStage from '../components/InputStage.jsx'
+import VisualizerCanvas from '../components/VisualizerCanvas.jsx'
+import PlaybackControls from '../components/PlaybackControls.jsx'
+import StepsPanel from '../components/StepsPanel.jsx'
+import StatisticsPanel from '../components/StatisticsPanel.jsx'
+import StepTutor from '../components/StepTutor.jsx'
+import CompareView from '../components/CompareView.jsx'
 import { bubbleSortSteps } from '../algorithms/bubbleSort.js'
 import { mergeSortSteps } from '../algorithms/mergeSort.js'
 import { quickSortSteps } from '../algorithms/quickSort.js'
 import { heapSortSteps } from '../algorithms/heapSort.js'
 import { linearSearchSteps } from '../algorithms/linearSearch.js'
 import { binarySearchSteps } from '../algorithms/binarySearch.js'
+import { applyTheme } from '../theme.js'
 
-const SPEED_LEVELS = [
-  { label: 'Slow', value: 1600 },
-  { label: 'Medium', value: 900 },
-  { label: 'Fast', value: 420 },
-  { label: 'Blaze', value: 200 },
-]
-
-const ALGORITHMS = {
-  bubble: {
-    name: 'Bubble Sort',
-    type: 'sort',
-    getSteps: bubbleSortSteps,
-    complexity: {
-      best: 'O(n)',
-      average: 'O(n^2)',
-      worst: 'O(n^2)',
-      space: 'O(1)',
-    },
-  },
-  merge: {
-    name: 'Merge Sort',
-    type: 'sort',
-    getSteps: mergeSortSteps,
-    complexity: {
-      best: 'O(n log n)',
-      average: 'O(n log n)',
-      worst: 'O(n log n)',
-      space: 'O(n)',
-    },
-  },
-  quick: {
-    name: 'Quick Sort',
-    type: 'sort',
-    getSteps: quickSortSteps,
-    complexity: {
-      best: 'O(n log n)',
-      average: 'O(n log n)',
-      worst: 'O(n^2)',
-      space: 'O(log n)',
-    },
-  },
-  heap: {
-    name: 'Heap Sort',
-    type: 'sort',
-    getSteps: heapSortSteps,
-    complexity: {
-      best: 'O(n log n)',
-      average: 'O(n log n)',
-      worst: 'O(n log n)',
-      space: 'O(1)',
-    },
-  },
-  linear: {
-    name: 'Linear Search',
-    type: 'search',
-    getSteps: linearSearchSteps,
-    complexity: {
-      best: 'O(1)',
-      average: 'O(n)',
-      worst: 'O(n)',
-      space: 'O(1)',
-    },
-  },
-  binary: {
-    name: 'Binary Search',
-    type: 'search',
-    getSteps: binarySearchSteps,
-    complexity: {
-      best: 'O(1)',
-      average: 'O(log n)',
-      worst: 'O(log n)',
-      space: 'O(1)',
-    },
-  },
+const ALGO_MAP = {
+  bubble: { name: 'Bubble Sort',   type: 'sort',   viz: 'bar',   getSteps: bubbleSortSteps },
+  merge:  { name: 'Merge Sort',    type: 'sort',   viz: 'merge', getSteps: mergeSortSteps },
+  quick:  { name: 'Quick Sort',    type: 'sort',   viz: 'bar',   getSteps: quickSortSteps },
+  heap:   { name: 'Heap Sort',     type: 'sort',   viz: 'heap',  getSteps: heapSortSteps },
+  linear: { name: 'Linear Search', type: 'search', viz: 'cell',  getSteps: linearSearchSteps },
+  binary: { name: 'Binary Search', type: 'search', viz: 'cell',  getSteps: binarySearchSteps },
 }
 
-const DEFAULT_STEP = 'Ready to visualize. Generate an array to begin.'
+const SPEED_MS = [1400, 700, 300, 120]
+const ACTION_TYPES = new Set(['COMPARE', 'SWAP', 'OVERWRITE'])
 
-function VisualizerPage() {
-  const { algorithm } = useParams()
-  const navigate = useNavigate()
-  const safeAlgorithm = ALGORITHMS[algorithm] ? algorithm : 'bubble'
+function deriveState(steps, array, targetIndex) {
+  const values = [...array]
+  const sortedSet = new Set()
+  let actionIndices = [], pointers = [], lastType = null
+  let foundIndex = null, activeRange = null
+  let comparisons = 0, swaps = 0
 
-  const [array, setArray] = useState([])
+  for (let i = 0; i <= targetIndex; i++) {
+    const step = steps[i]; if (!step) break
+    lastType = step.type
+    pointers = Array.isArray(step.pointers) ? step.pointers : []
+    if (step.activeRange) activeRange = step.activeRange
+    else if (step.type === 'RANGE') activeRange = step.indices
+    actionIndices = ACTION_TYPES.has(step.type) ? step.indices ?? [] : []
+    if (step.type === 'COMPARE') comparisons++
+    if (step.type === 'SWAP') {
+      swaps++
+      const [a, b] = step.indices
+      const t = values[a]; values[a] = values[b]; values[b] = t
+    }
+    if (step.type === 'OVERWRITE') {
+      swaps++
+      const idx = step.indices?.[0]
+      if (idx != null) values[idx] = step.value
+    }
+    if (step.type === 'SORTED') step.indices?.forEach((idx) => sortedSet.add(idx))
+    if (step.type === 'FOUND') {
+      const idx = step.indices?.[0]
+      foundIndex = typeof idx === 'number' && idx >= 0 ? idx : null
+    }
+  }
+
+  const sortedIndices = Array.from(sortedSet)
+  const isDone = targetIndex >= steps.length - 1
+  return { values, actionIndices, sortedIndices, foundIndex, activeRange, pointers, lastType, comparisons, swaps, isDone }
+}
+
+export default function VisualizerPage() {
+  const [theme, setTheme] = useState('dark')
+  const [compareMode, setCompareMode] = useState(false)
+  const [stage, setStage] = useState('input')
+
+  const [algorithmKey, setAlgorithmKey] = useState('bubble')
   const [baseArray, setBaseArray] = useState([])
-  const [arraySize, setArraySize] = useState(24)
-  const [algorithmKey, setAlgorithmKey] = useState(safeAlgorithm)
-  const [speedLevel, setSpeedLevel] = useState(2)
-  const [isRunning, setIsRunning] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [speedLevel, setSpeedLevel] = useState(1)
   const [steps, setSteps] = useState([])
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [stepIndex, setStepIndex] = useState(-1)
-  const [currentStep, setCurrentStep] = useState(DEFAULT_STEP)
-  const [comparingIndices, setComparingIndices] = useState([])
-  const [swappingIndices, setSwappingIndices] = useState([])
-  const [sortedIndices, setSortedIndices] = useState([])
-  const [foundIndex, setFoundIndex] = useState(null)
-  const [activeRange, setActiveRange] = useState(null)
-  const [customInput, setCustomInput] = useState('')
-  const [targetValue, setTargetValue] = useState('')
-  const [notice, setNotice] = useState('')
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showSteps, setShowSteps] = useState(false)
+  const [vizState, setVizState] = useState(null)
 
-  const pausedRef = useRef(false)
-  const stopRef = useRef(false)
+  const playIntervalRef = useRef(null)
 
-  const algorithmInfo = ALGORITHMS[algorithmKey]
-  const speed = SPEED_LEVELS[speedLevel]?.value ?? SPEED_LEVELS[1].value
+  useEffect(() => { applyTheme(theme) }, [theme])
 
-  const maxValue = useMemo(() => {
-    if (!array.length) return 1
-    return Math.max(...array, 1)
-  }, [array])
+  const seekTo = useCallback((idx) => {
+    if (!steps.length) return
+    const clamped = Math.max(0, Math.min(idx, steps.length - 1))
+    setStepIndex(clamped)
+    setVizState(deriveState(steps, baseArray, clamped))
+  }, [steps, baseArray])
 
   useEffect(() => {
-    if (!ALGORITHMS[algorithm]) {
-      navigate(`/visualize/${safeAlgorithm}`, { replace: true })
-      return
-    }
-    setAlgorithmKey(algorithm)
-  }, [algorithm, navigate, safeAlgorithm])
-
-  useEffect(() => {
-    if (isRunning) return
-    generateNewArray(arraySize)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arraySize])
-
-  useEffect(() => {
-    if (isRunning) return
-    clearHighlights()
-    setSteps([])
-    setStepIndex(-1)
-    setCurrentStep(DEFAULT_STEP)
-    setNotice('')
-  }, [algorithmKey, isRunning])
-
-  const clearHighlights = () => {
-    setComparingIndices([])
-    setSwappingIndices([])
-    setSortedIndices([])
-    setFoundIndex(null)
-    setActiveRange(null)
-  }
-
-  const generateNewArray = (size) => {
-    const next = generateRandomArray(size, 8, 120)
-    setArray(next)
-    setBaseArray(next)
-    setCustomInput('')
-    setNotice('')
-    clearHighlights()
-    setSteps([])
-    setStepIndex(-1)
-    setCurrentStep(DEFAULT_STEP)
-  }
-
-  const resetToBase = () => {
-    stopRef.current = true
-    pausedRef.current = false
-    setIsPaused(false)
-    setIsRunning(false)
-    setArray(baseArray)
-    clearHighlights()
-    setSteps([])
-    setStepIndex(-1)
-    setCurrentStep(DEFAULT_STEP)
-    setNotice('')
-  }
-
-  const applyCustomInput = () => {
-    if (isRunning) return
-    const { array: parsed, error } = parseInputToArray(customInput, 60)
-    if (error) {
-      setNotice(error)
-      return
-    }
-    if (parsed.length < 2) {
-      setNotice('Please enter at least 2 numbers.')
-      return
-    }
-    setNotice('Custom array applied.')
-    setArray(parsed)
-    setBaseArray(parsed)
-    clearHighlights()
-    setSteps([])
-    setStepIndex(-1)
-    setCurrentStep(DEFAULT_STEP)
-  }
-
-  const pauseIfNeeded = async () => {
-    while (pausedRef.current) {
-      if (stopRef.current) return false
-      await sleep(80)
-    }
-    return !stopRef.current
-  }
-
-  const applyStep = (step) => {
-    setCurrentStep(step.description)
-    setComparingIndices([])
-    setSwappingIndices([])
-    if (step.type === 'range') {
-      setActiveRange(step.indices)
-    }
-
-    if (step.type === 'compare') {
-      setComparingIndices(step.indices)
-      return
-    }
-    if (step.type === 'swap') {
-      setSwappingIndices(step.indices)
-      setArray((prev) => {
-        const next = [...prev]
-        const [first, second] = step.indices
-        const temp = next[first]
-        next[first] = next[second]
-        next[second] = temp
+    if (!isPlaying) { clearInterval(playIntervalRef.current); return }
+    const ms = SPEED_MS[speedLevel] ?? 700
+    playIntervalRef.current = setInterval(() => {
+      setStepIndex((prev) => {
+        const next = prev + 1
+        if (next >= steps.length) { setIsPlaying(false); return prev }
+        setVizState(deriveState(steps, baseArray, next))
         return next
       })
-      return
-    }
-    if (step.type === 'overwrite') {
-      setSwappingIndices(step.indices)
-      setArray((prev) => {
-        const next = [...prev]
-        next[step.indices[0]] = step.value
-        return next
-      })
-      return
-    }
-    if (step.type === 'markSorted') {
-      setSortedIndices((prev) => {
-        const merged = new Set(prev)
-        step.indices.forEach((index) => merged.add(index))
-        return Array.from(merged)
-      })
-      return
-    }
-    if (step.type === 'markFound') {
-      const nextIndex = step.indices[0]
-      setFoundIndex(nextIndex >= 0 ? nextIndex : null)
-      return
-    }
-  }
+    }, ms)
+    return () => clearInterval(playIntervalRef.current)
+  }, [isPlaying, speedLevel, steps, baseArray])
 
-  const runSteps = async (stepList, type, length) => {
-    for (let i = 0; i < stepList.length; i += 1) {
-      if (stopRef.current) break
-      const canContinue = await pauseIfNeeded()
-      if (!canContinue) break
-
-      const step = stepList[i]
-      setStepIndex(i)
-      applyStep(step)
-      await sleep(speed)
-    }
-
-    if (!stopRef.current && type === 'sort') {
-      setSortedIndices(Array.from({ length }, (_, index) => index))
-      setCurrentStep('Sorted! Explore the steps or try a new algorithm.')
-    }
-    if (!stopRef.current && type === 'search') {
-      setCurrentStep('Search completed. Adjust the target or regenerate data.')
-    }
-    if (!stopRef.current) {
-      setIsRunning(false)
-      setIsPaused(false)
-      pausedRef.current = false
-    }
-  }
-
-  const handleStart = async () => {
-    if (isRunning) return
-    if (algorithmInfo.type === 'search') {
-      if (targetValue.trim() === '') {
-        setNotice('Enter a target value to search for.')
-        return
-      }
-      if (Number.isNaN(Number(targetValue))) {
-        setNotice('Target value must be a number.')
-        return
-      }
-    }
-    setNotice('')
-    stopRef.current = false
-    pausedRef.current = false
-    setIsPaused(false)
-    setIsRunning(true)
-    clearHighlights()
-    setStepIndex(-1)
-
-    const workingArray =
-      algorithmKey === 'binary'
-        ? [...array].sort((a, b) => a - b)
-        : [...array]
-
-    if (algorithmKey === 'binary') {
-      setArray(workingArray)
-      setBaseArray(workingArray)
-      setNotice('Binary search requires a sorted array. Sorted for you.')
-    }
-
-    const target = Number(targetValue)
-    const { steps: nextSteps } = algorithmInfo.getSteps(workingArray, target)
-    setSteps(nextSteps)
-    setCurrentStep('Algorithm running...')
-    await runSteps(nextSteps, algorithmInfo.type, workingArray.length)
-  }
-
-  const handlePauseToggle = () => {
-    if (!isRunning) return
-    const next = !isPaused
-    setIsPaused(next)
-    pausedRef.current = next
-  }
-
-  const handleAlgorithmChange = (key) => {
+  const handleStart = ({ algorithmKey: key, array: arr, speedLevel: spd, targetValue: tv }) => {
+    let workingArray = [...arr]
+    if (key === 'binary') workingArray = [...arr].sort((a, b) => a - b)
+    const t0 = performance.now()
+    const { steps: nextSteps } = ALGO_MAP[key].getSteps(workingArray, tv)
+    const elapsed = Math.round(performance.now() - t0)
     setAlgorithmKey(key)
-    navigate(`/visualize/${key}`)
+    setBaseArray(workingArray)
+    setSpeedLevel(spd)
+    setSteps(nextSteps)
+    setElapsedMs(elapsed)
+    setStepIndex(-1)
+    setVizState(null)
+    setIsPlaying(false)
+    setStage('playback')
+    setShowSteps(false)
   }
+
+  const handlePlay    = () => { if (stepIndex >= steps.length - 1) seekTo(0); setIsPlaying(true) }
+  const handlePause   = () => setIsPlaying(false)
+  const handlePrev    = () => { setIsPlaying(false); seekTo(Math.max(0, stepIndex - 1)) }
+  const handleNext    = () => { setIsPlaying(false); seekTo(Math.min(steps.length - 1, stepIndex + 1)) }
+  const handleRewind  = () => { setIsPlaying(false); seekTo(0) }
+  const handleForward = () => { setIsPlaying(false); seekTo(steps.length - 1) }
+  const handleScrub   = (v) => { setIsPlaying(false); seekTo(v) }
+  const handleReset   = () => { setIsPlaying(false); setStage('input'); setSteps([]); setStepIndex(-1); setVizState(null) }
+
+  const algoInfo = ALGO_MAP[algorithmKey]
+  const activeStep = steps[stepIndex] ?? null
+  const comparisons = vizState?.comparisons ?? 0
+  const swaps = vizState?.swaps ?? 0
 
   return (
-    <div className="app">
-      <Navbar title="AlgoVista" subtitle="Interactive DSA Algorithm Visualizer" />
-      <main className="layout">
-        <section className="panel control">
-          <ControlPanel
-            algorithms={ALGORITHMS}
-            algorithmKey={algorithmKey}
-            setAlgorithmKey={handleAlgorithmChange}
-            arraySize={arraySize}
-            setArraySize={setArraySize}
-            onGenerate={() => generateNewArray(arraySize)}
-            onReset={resetToBase}
-            onStart={handleStart}
-            onPause={handlePauseToggle}
-            isRunning={isRunning}
-            isPaused={isPaused}
-            speedLevel={speedLevel}
-            setSpeedLevel={setSpeedLevel}
-            speedLabel={SPEED_LEVELS[speedLevel]?.label}
-            customInput={customInput}
-            setCustomInput={setCustomInput}
-            onApplyInput={applyCustomInput}
-            targetValue={targetValue}
-            setTargetValue={setTargetValue}
-            algorithmInfo={algorithmInfo}
-            notice={notice}
-          />
-        </section>
-        <section className="panel visual">
-          <Visualizer
-            array={array}
-            maxValue={maxValue}
-            comparingIndices={comparingIndices}
-            swappingIndices={swappingIndices}
-            sortedIndices={sortedIndices}
-            foundIndex={foundIndex}
-            activeRange={activeRange}
-            algorithmKey={algorithmKey}
-            algorithmType={algorithmInfo.type}
-            isRunning={isRunning}
-          />
-        </section>
-        <section className="panel explain">
-          <ExplanationPanel
-            steps={steps}
-            currentStep={currentStep}
-            stepIndex={stepIndex}
-          />
-        </section>
-      </main>
+    <div className="app-shell">
+      <Navbar
+        theme={theme}
+        onThemeChange={setTheme}
+        onHome={handleReset}
+        compareMode={compareMode}
+        onToggleCompare={() => setCompareMode((p) => !p)}
+      />
+
+      {compareMode ? (
+        <div className="compare-mode-wrap">
+          <CompareView array={baseArray.length ? baseArray : [8,3,5,1,9,2,7,4]} speed={speedLevel} />
+        </div>
+      ) : stage === 'input' ? (
+        <InputStage onStart={handleStart} />
+      ) : (
+        <div className="execution-layout">
+          <aside className="sidebar-left">
+            <StatisticsPanel
+              algorithmKey={algorithmKey}
+              comparisons={comparisons}
+              swaps={swaps}
+              currentStep={stepIndex}
+              totalSteps={steps.length}
+              elapsedMs={elapsedMs}
+            />
+            <StepTutor step={activeStep} stepIndex={stepIndex} />
+          </aside>
+
+          <main className="viz-main">
+            <div className="viz-topbar">
+              <button type="button" className="btn-ghost btn-sm" onClick={handleReset}>← New Input</button>
+              <span className="viz-algo-label">{algoInfo?.name}</span>
+              <button
+                type="button"
+                className={`btn-ghost btn-sm${showSteps ? ' active' : ''}`}
+                onClick={() => setShowSteps((p) => !p)}
+              >📋 Steps</button>
+            </div>
+
+            <VisualizerCanvas
+              algorithmKey={algorithmKey}
+              baseArray={baseArray}
+              vizState={vizState}
+              steps={steps}
+              stepIndex={stepIndex}
+            />
+
+            <PlaybackControls
+              stepIndex={stepIndex < 0 ? 0 : stepIndex}
+              totalSteps={steps.length}
+              isPlaying={isPlaying}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onPrev={handlePrev}
+              onNext={handleNext}
+              onRewind={handleRewind}
+              onForward={handleForward}
+              onScrub={handleScrub}
+              speed={speedLevel}
+              onSpeedChange={(v) => { setSpeedLevel(v); setIsPlaying(false) }}
+            />
+
+            {activeStep && (
+              <div className="current-step-banner">
+                <span className={`step-type-badge step-type-${activeStep.type?.toLowerCase()}`}>{activeStep.type}</span>
+                <span className="current-step-text">{activeStep.description}</span>
+              </div>
+            )}
+          </main>
+
+          {showSteps && (
+            <aside className="sidebar-right">
+              <StepsPanel
+                steps={steps}
+                currentIndex={stepIndex}
+                onSelectStep={(idx) => { setIsPlaying(false); seekTo(idx) }}
+                onClose={() => setShowSteps(false)}
+              />
+            </aside>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
-export default VisualizerPage
