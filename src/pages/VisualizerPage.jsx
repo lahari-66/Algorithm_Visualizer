@@ -1,125 +1,304 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Navbar from '../components/Navbar.jsx'
-import InputStage from '../components/InputStage.jsx'
 import VisualizerCanvas from '../components/VisualizerCanvas.jsx'
 import PlaybackControls from '../components/PlaybackControls.jsx'
 import StepsPanel from '../components/StepsPanel.jsx'
 import StatisticsPanel from '../components/StatisticsPanel.jsx'
 import StepTutor from '../components/StepTutor.jsx'
 import CompareView from '../components/CompareView.jsx'
-import { bubbleSortSteps } from '../algorithms/bubbleSort.js'
-import { mergeSortSteps } from '../algorithms/mergeSort.js'
-import { quickSortSteps } from '../algorithms/quickSort.js'
-import { heapSortSteps } from '../algorithms/heapSort.js'
-import { linearSearchSteps } from '../algorithms/linearSearch.js'
-import { binarySearchSteps } from '../algorithms/binarySearch.js'
+import AllStepsModal from '../components/AllStepsModal.jsx'
+import { ALGORITHM_CATEGORIES } from '../components/InputStage.jsx'
+import { bubbleSortSteps }          from '../algorithms/bubbleSort.js'
+import { selectionSortSteps }       from '../algorithms/selectionSort.js'
+import { insertionSortSteps }       from '../algorithms/insertionSort.js'
+import { mergeSortSteps }           from '../algorithms/mergeSort.js'
+import { quickSortSteps }           from '../algorithms/quickSort.js'
+import { heapSortSteps }            from '../algorithms/heapSort.js'
+import { countingSortSteps }        from '../algorithms/countingSort.js'
+import { linearSearchSteps }        from '../algorithms/linearSearch.js'
+import { binarySearchSteps }        from '../algorithms/binarySearch.js'
+import { bfsSteps }                 from '../algorithms/bfs.js'
+import { dfsSteps }                 from '../algorithms/dfs.js'
+import { dijkstraSteps }            from '../algorithms/dijkstra.js'
+import { binaryTreeTraversalSteps } from '../algorithms/binaryTreeTraversal.js'
+import { bstOperationsSteps }       from '../algorithms/bstOperations.js'
+import { aStarSteps }               from '../algorithms/aStar.js'
+import { mazeSolverSteps }          from '../algorithms/mazeSolver.js'
+import { generateRandomArray, parseInputToArray } from '../utils/arrayGenerator.js'
 import { applyTheme } from '../theme.js'
 
 const ALGO_MAP = {
-  bubble: { name: 'Bubble Sort',   type: 'sort',   viz: 'bar',   getSteps: bubbleSortSteps },
-  merge:  { name: 'Merge Sort',    type: 'sort',   viz: 'merge', getSteps: mergeSortSteps },
-  quick:  { name: 'Quick Sort',    type: 'sort',   viz: 'bar',   getSteps: quickSortSteps },
-  heap:   { name: 'Heap Sort',     type: 'sort',   viz: 'heap',  getSteps: heapSortSteps },
-  linear: { name: 'Linear Search', type: 'search', viz: 'cell',  getSteps: linearSearchSteps },
-  binary: { name: 'Binary Search', type: 'search', viz: 'cell',  getSteps: binarySearchSteps },
+  bubble:    { name: 'Bubble Sort',    viz: 'bar',   getSteps: (a)     => bubbleSortSteps(a) },
+  selection: { name: 'Selection Sort', viz: 'bar',   getSteps: (a)     => selectionSortSteps(a) },
+  insertion: { name: 'Insertion Sort', viz: 'bar',   getSteps: (a)     => insertionSortSteps(a) },
+  merge:     { name: 'Merge Sort',     viz: 'merge', getSteps: (a)     => mergeSortSteps(a) },
+  quick:     { name: 'Quick Sort',     viz: 'bar',   getSteps: (a)     => quickSortSteps(a) },
+  heap:      { name: 'Heap Sort',      viz: 'heap',  getSteps: (a)     => heapSortSteps(a) },
+  counting:  { name: 'Counting Sort',  viz: 'bar',   getSteps: (a)     => countingSortSteps(a) },
+  linear:    { name: 'Linear Search',  viz: 'cell',  getSteps: (a, tv) => linearSearchSteps(a, tv) },
+  binary:    { name: 'Binary Search',  viz: 'cell',  getSteps: (a, tv) => binarySearchSteps(a, tv) },
+  bfs:       { name: 'BFS',            viz: 'graph', getSteps: ()      => bfsSteps() },
+  dfs:       { name: 'DFS',            viz: 'graph', getSteps: ()      => dfsSteps() },
+  dijkstra:  { name: "Dijkstra's",     viz: 'graph', getSteps: ()      => dijkstraSteps() },
+  bttree:    { name: 'Tree Traversal', viz: 'tree',  getSteps: ()      => binaryTreeTraversalSteps() },
+  bst:       { name: 'BST Operations', viz: 'tree',  getSteps: ()      => bstOperationsSteps() },
+  astar:     { name: 'A* Algorithm',   viz: 'path',  getSteps: ()      => aStarSteps() },
+  maze:      { name: 'Maze Solver',    viz: 'path',  getSteps: ()      => mazeSolverSteps() },
 }
 
-const SPEED_MS = [1400, 700, 300, 120]
+const ALL_ALGOS = ALGORITHM_CATEGORIES.flatMap((c) => c.algorithms)
+const SPEED_MS  = [1400, 700, 300, 120]
 const ACTION_TYPES = new Set(['COMPARE', 'SWAP', 'OVERWRITE'])
 
-function deriveState(steps, array, targetIndex) {
+function deriveState(steps, array, idx) {
   const values = [...array]
   const sortedSet = new Set()
   let actionIndices = [], pointers = [], lastType = null
-  let foundIndex = null, activeRange = null
-  let comparisons = 0, swaps = 0
+  let foundIndex = null, activeRange = null, comparisons = 0, swaps = 0
 
-  for (let i = 0; i <= targetIndex; i++) {
-    const step = steps[i]; if (!step) break
-    lastType = step.type
-    pointers = Array.isArray(step.pointers) ? step.pointers : []
-    if (step.activeRange) activeRange = step.activeRange
-    else if (step.type === 'RANGE') activeRange = step.indices
-    actionIndices = ACTION_TYPES.has(step.type) ? step.indices ?? [] : []
-    if (step.type === 'COMPARE') comparisons++
-    if (step.type === 'SWAP') {
+  for (let i = 0; i <= idx; i++) {
+    const s = steps[i]; if (!s) break
+    lastType = s.type
+    pointers = Array.isArray(s.pointers) ? s.pointers : []
+    if (s.activeRange) activeRange = s.activeRange
+    else if (s.type === 'RANGE' && s.indices?.length === 2) activeRange = s.indices
+    actionIndices = ACTION_TYPES.has(s.type) ? s.indices ?? [] : []
+    if (s.type === 'COMPARE') comparisons++
+    if (s.type === 'SWAP') {
       swaps++
-      const [a, b] = step.indices
+      const [a, b] = s.indices
       const t = values[a]; values[a] = values[b]; values[b] = t
     }
-    if (step.type === 'OVERWRITE') {
+    if (s.type === 'OVERWRITE') {
       swaps++
-      const idx = step.indices?.[0]
-      if (idx != null) values[idx] = step.value
+      const ix = s.indices?.[0]
+      if (ix != null) values[ix] = s.value
     }
-    if (step.type === 'SORTED') step.indices?.forEach((idx) => sortedSet.add(idx))
-    if (step.type === 'FOUND') {
-      const idx = step.indices?.[0]
-      foundIndex = typeof idx === 'number' && idx >= 0 ? idx : null
+    if (s.type === 'SORTED') s.indices?.forEach((ix) => sortedSet.add(ix))
+    if (s.type === 'FOUND') {
+      const ix = s.indices?.[0]
+      foundIndex = typeof ix === 'number' && ix >= 0 ? ix : null
     }
   }
+  return { values, actionIndices, sortedIndices: Array.from(sortedSet), foundIndex, activeRange, pointers, lastType, comparisons, swaps, isDone: idx >= steps.length - 1 }
+}
 
-  const sortedIndices = Array.from(sortedSet)
-  const isDone = targetIndex >= steps.length - 1
-  return { values, actionIndices, sortedIndices, foundIndex, activeRange, pointers, lastType, comparisons, swaps, isDone }
+// ── Compact top-bar input controls ──────────────────────────────
+function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, onSizeChange,
+                  customInput, onCustomInput, onApplyCustom, targetValue, onTargetChange,
+                  speedLevel, onSpeedChange, onStart, onReset, isRunning, error }) {
+  const algo = ALL_ALGOS.find((a) => a.key === algorithmKey)
+  const isSearch = algo?.type === 'search'
+  const isArray  = algo?.type === 'sort' || algo?.type === 'search'
+
+  return (
+    <div className="topbar">
+      {/* Algorithm selector */}
+      <div className="topbar-group topbar-algo">
+        <label className="topbar-label">Algorithm</label>
+        <select className="topbar-select" value={algorithmKey}
+          onChange={(e) => onAlgoChange(e.target.value)} disabled={isRunning}>
+          {ALGORITHM_CATEGORIES.map((cat) => (
+            <optgroup key={cat.key} label={cat.label}>
+              {cat.algorithms.map((a) => (
+                <option key={a.key} value={a.key}>{a.label}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      {/* Array input — only for sort/search */}
+      {isArray && (
+        <>
+          <div className="topbar-divider" />
+          <div className="topbar-group">
+            <label className="topbar-label">Size: {arraySize}</label>
+            <input type="range" min="4" max="50" value={arraySize}
+              className="topbar-slider" onChange={(e) => onSizeChange(Number(e.target.value))}
+              disabled={isRunning} />
+          </div>
+          <div className="topbar-group topbar-custom">
+            <label className="topbar-label">Custom</label>
+            <div className="topbar-input-row">
+              <input type="text" className="topbar-text" placeholder="5,3,8,1…"
+                value={customInput} onChange={(e) => onCustomInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onApplyCustom()}
+                disabled={isRunning} />
+              <button type="button" className="topbar-apply" onClick={onApplyCustom} disabled={isRunning}>✓</button>
+            </div>
+          </div>
+          {isSearch && (
+            <div className="topbar-group">
+              <label className="topbar-label">Target</label>
+              <input type="number" className="topbar-text topbar-target" placeholder="value"
+                value={targetValue} onChange={(e) => onTargetChange(e.target.value)}
+                disabled={isRunning} />
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="topbar-divider" />
+
+      {/* Speed */}
+      <div className="topbar-group">
+        <label className="topbar-label">Speed</label>
+        <div className="topbar-speed-chips">
+          {['Slow','Med','Fast','⚡'].map((lbl, i) => (
+            <button key={i} type="button"
+              className={`topbar-speed-chip${speedLevel === i ? ' active' : ''}`}
+              onClick={() => onSpeedChange(i)} disabled={isRunning}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="topbar-divider" />
+
+      {/* Actions */}
+      <div className="topbar-actions">
+        {isArray && (
+          <button type="button" className="topbar-btn topbar-btn-ghost"
+            onClick={() => onArrayChange(generateRandomArray(arraySize, 8, 100))}
+            disabled={isRunning} title="Random array">
+            🎲
+          </button>
+        )}
+        <button type="button" className="topbar-btn topbar-btn-primary" onClick={onStart} disabled={isRunning}>
+          ▶ Start
+        </button>
+        <button type="button" className="topbar-btn topbar-btn-ghost" onClick={onReset} title="Reset">
+          ↺ Reset
+        </button>
+      </div>
+
+      {error && <span className="topbar-error">{error}</span>}
+    </div>
+  )
+}
+
+// ── Array preview strip ──────────────────────────────────────────
+function ArrayStrip({ array }) {
+  if (!array?.length) return null
+  return (
+    <div className="array-strip">
+      {array.map((v, i) => <span key={i} className="array-strip-chip">{v}</span>)}
+    </div>
+  )
 }
 
 export default function VisualizerPage() {
   const [theme, setTheme] = useState('dark')
   const [compareMode, setCompareMode] = useState(false)
-  const [stage, setStage] = useState('input')
 
+  // Input state
   const [algorithmKey, setAlgorithmKey] = useState('bubble')
-  const [baseArray, setBaseArray] = useState([])
+  const [arraySize, setArraySize] = useState(16)
+  const [customInput, setCustomInput] = useState('')
+  const [targetValue, setTargetValue] = useState('')
   const [speedLevel, setSpeedLevel] = useState(1)
+  const [array, setArray] = useState(() => generateRandomArray(16, 8, 100))
+  const [inputError, setInputError] = useState('')
+
+  // Playback state
   const [steps, setSteps] = useState([])
-  const [elapsedMs, setElapsedMs] = useState(0)
   const [stepIndex, setStepIndex] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [showSteps, setShowSteps] = useState(false)
   const [vizState, setVizState] = useState(null)
+  const [algoMeta, setAlgoMeta] = useState(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [baseArray, setBaseArray] = useState([])
+  const [showSteps, setShowSteps] = useState(false)
+  const [showAllSteps, setShowAllSteps] = useState(false)
+  const [hasRun, setHasRun] = useState(false)
 
-  const playIntervalRef = useRef(null)
+  const playRef = useRef(null)
 
   useEffect(() => { applyTheme(theme) }, [theme])
 
   const seekTo = useCallback((idx) => {
     if (!steps.length) return
-    const clamped = Math.max(0, Math.min(idx, steps.length - 1))
-    setStepIndex(clamped)
-    setVizState(deriveState(steps, baseArray, clamped))
-  }, [steps, baseArray])
+    const c = Math.max(0, Math.min(idx, steps.length - 1))
+    setStepIndex(c)
+    // Only derive array state for array-based algos
+    const algo = ALGO_MAP[algorithmKey]
+    if (['bar','cell','merge','heap'].includes(algo?.viz)) {
+      setVizState(deriveState(steps, baseArray, c))
+    }
+  }, [steps, baseArray, algorithmKey])
 
   useEffect(() => {
-    if (!isPlaying) { clearInterval(playIntervalRef.current); return }
+    if (!isPlaying) { clearInterval(playRef.current); return }
     const ms = SPEED_MS[speedLevel] ?? 700
-    playIntervalRef.current = setInterval(() => {
+    playRef.current = setInterval(() => {
       setStepIndex((prev) => {
         const next = prev + 1
         if (next >= steps.length) { setIsPlaying(false); return prev }
-        setVizState(deriveState(steps, baseArray, next))
+        const algo = ALGO_MAP[algorithmKey]
+        if (['bar','cell','merge','heap'].includes(algo?.viz)) {
+          setVizState(deriveState(steps, baseArray, next))
+        }
         return next
       })
     }, ms)
-    return () => clearInterval(playIntervalRef.current)
-  }, [isPlaying, speedLevel, steps, baseArray])
+    return () => clearInterval(playRef.current)
+  }, [isPlaying, speedLevel, steps, baseArray, algorithmKey])
 
-  const handleStart = ({ algorithmKey: key, array: arr, speedLevel: spd, targetValue: tv }) => {
-    let workingArray = [...arr]
-    if (key === 'binary') workingArray = [...arr].sort((a, b) => a - b)
+  const handleSizeChange = (n) => {
+    const clamped = Math.max(4, Math.min(50, n))
+    setArraySize(clamped)
+    setArray(generateRandomArray(clamped, 8, 100))
+    setCustomInput('')
+    setInputError('')
+  }
+
+  const handleApplyCustom = () => {
+    const { array: parsed, error: err } = parseInputToArray(customInput, 50)
+    if (err) { setInputError(err); return }
+    if (parsed.length < 2) { setInputError('Enter at least 2 numbers.'); return }
+    setArray(parsed)
+    setArraySize(parsed.length)
+    setInputError('')
+  }
+
+  const handleStart = () => {
+    const algo = ALL_ALGOS.find((a) => a.key === algorithmKey)
+    const isSearch = algo?.type === 'search'
+    if (isSearch && targetValue.trim() === '') { setInputError('Enter a target value.'); return }
+    if (isSearch && Number.isNaN(Number(targetValue))) { setInputError('Target must be a number.'); return }
+    setInputError('')
+
+    let workingArray = [...array]
+    if (algorithmKey === 'binary') workingArray = [...array].sort((a, b) => a - b)
+
     const t0 = performance.now()
-    const { steps: nextSteps } = ALGO_MAP[key].getSteps(workingArray, tv)
+    const result = ALGO_MAP[algorithmKey].getSteps(workingArray, Number(targetValue))
     const elapsed = Math.round(performance.now() - t0)
-    setAlgorithmKey(key)
+
+    const { steps: nextSteps, ...meta } = result
     setBaseArray(workingArray)
-    setSpeedLevel(spd)
     setSteps(nextSteps)
     setElapsedMs(elapsed)
+    setAlgoMeta(meta)
     setStepIndex(-1)
     setVizState(null)
     setIsPlaying(false)
-    setStage('playback')
+    setHasRun(true)
     setShowSteps(false)
+  }
+
+  const handleReset = () => {
+    setIsPlaying(false)
+    setSteps([])
+    setStepIndex(-1)
+    setVizState(null)
+    setAlgoMeta(null)
+    setHasRun(false)
+    setShowSteps(false)
+    setShowAllSteps(false)
+    setInputError('')
   }
 
   const handlePlay    = () => { if (stepIndex >= steps.length - 1) seekTo(0); setIsPlaying(true) }
@@ -129,96 +308,136 @@ export default function VisualizerPage() {
   const handleRewind  = () => { setIsPlaying(false); seekTo(0) }
   const handleForward = () => { setIsPlaying(false); seekTo(steps.length - 1) }
   const handleScrub   = (v) => { setIsPlaying(false); seekTo(v) }
-  const handleReset   = () => { setIsPlaying(false); setStage('input'); setSteps([]); setStepIndex(-1); setVizState(null) }
 
-  const algoInfo = ALGO_MAP[algorithmKey]
+  const algoInfo   = ALGO_MAP[algorithmKey]
   const activeStep = steps[stepIndex] ?? null
   const comparisons = vizState?.comparisons ?? 0
-  const swaps = vizState?.swaps ?? 0
+  const swaps       = vizState?.swaps ?? 0
+  const algo        = ALL_ALGOS.find((a) => a.key === algorithmKey)
+  const isArray     = algo?.type === 'sort' || algo?.type === 'search'
 
   return (
     <div className="app-shell">
-      <Navbar
-        theme={theme}
-        onThemeChange={setTheme}
-        onHome={handleReset}
-        compareMode={compareMode}
-        onToggleCompare={() => setCompareMode((p) => !p)}
-      />
+      <Navbar theme={theme} onThemeChange={setTheme} onHome={handleReset}
+        compareMode={compareMode} onToggleCompare={() => setCompareMode((p) => !p)} />
 
       {compareMode ? (
         <div className="compare-mode-wrap">
           <CompareView array={baseArray.length ? baseArray : [8,3,5,1,9,2,7,4]} speed={speedLevel} />
         </div>
-      ) : stage === 'input' ? (
-        <InputStage onStart={handleStart} />
       ) : (
-        <div className="execution-layout">
-          <aside className="sidebar-left">
-            <StatisticsPanel
-              algorithmKey={algorithmKey}
-              comparisons={comparisons}
-              swaps={swaps}
-              currentStep={stepIndex}
-              totalSteps={steps.length}
-              elapsedMs={elapsedMs}
-            />
-            <StepTutor step={activeStep} stepIndex={stepIndex} />
-          </aside>
+        <div className="viz-page">
+          {/* ── Top control bar ── */}
+          <TopBar
+            algorithmKey={algorithmKey}
+            onAlgoChange={(k) => { setAlgorithmKey(k); handleReset() }}
+            array={array}
+            onArrayChange={setArray}
+            arraySize={arraySize}
+            onSizeChange={handleSizeChange}
+            customInput={customInput}
+            onCustomInput={setCustomInput}
+            onApplyCustom={handleApplyCustom}
+            targetValue={targetValue}
+            onTargetChange={setTargetValue}
+            speedLevel={speedLevel}
+            onSpeedChange={setSpeedLevel}
+            onStart={handleStart}
+            onReset={handleReset}
+            isRunning={isPlaying}
+            error={inputError}
+          />
 
-          <main className="viz-main">
-            <div className="viz-topbar">
-              <button type="button" className="btn-ghost btn-sm" onClick={handleReset}>← New Input</button>
-              <span className="viz-algo-label">{algoInfo?.name}</span>
-              <button
-                type="button"
-                className={`btn-ghost btn-sm${showSteps ? ' active' : ''}`}
-                onClick={() => setShowSteps((p) => !p)}
-              >📋 Steps</button>
-            </div>
+          {/* Array preview strip — only for array algos before running */}
+          {isArray && !hasRun && <ArrayStrip array={array} />}
 
-            <VisualizerCanvas
-              algorithmKey={algorithmKey}
-              baseArray={baseArray}
-              vizState={vizState}
-              steps={steps}
-              stepIndex={stepIndex}
-            />
-
-            <PlaybackControls
-              stepIndex={stepIndex < 0 ? 0 : stepIndex}
-              totalSteps={steps.length}
-              isPlaying={isPlaying}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onPrev={handlePrev}
-              onNext={handleNext}
-              onRewind={handleRewind}
-              onForward={handleForward}
-              onScrub={handleScrub}
-              speed={speedLevel}
-              onSpeedChange={(v) => { setSpeedLevel(v); setIsPlaying(false) }}
-            />
-
-            {activeStep && (
-              <div className="current-step-banner">
-                <span className={`step-type-badge step-type-${activeStep.type?.toLowerCase()}`}>{activeStep.type}</span>
-                <span className="current-step-text">{activeStep.description}</span>
-              </div>
-            )}
-          </main>
-
-          {showSteps && (
-            <aside className="sidebar-right">
-              <StepsPanel
-                steps={steps}
-                currentIndex={stepIndex}
-                onSelectStep={(idx) => { setIsPlaying(false); seekTo(idx) }}
-                onClose={() => setShowSteps(false)}
-              />
+          {/* ── Main content ── */}
+          <div className={`viz-layout${showSteps ? ' viz-layout-with-panel' : ''}`}>
+            {/* Left sidebar — stats */}
+            <aside className="viz-sidebar-left">
+              <StatisticsPanel algorithmKey={algorithmKey} comparisons={comparisons}
+                swaps={swaps} currentStep={stepIndex} totalSteps={steps.length} elapsedMs={elapsedMs} />
+              <StepTutor step={activeStep} stepIndex={stepIndex} />
             </aside>
-          )}
+
+            {/* Center — visualization + playback */}
+            <main className="viz-center">
+              <div className="viz-center-header">
+                <span className="viz-algo-name">{algoInfo?.name}</span>
+                <div className="viz-center-header-btns">
+                  {steps.length > 0 && (
+                    <button type="button"
+                      className="btn-ghost btn-sm asm-open-btn"
+                      onClick={() => setShowAllSteps(true)}>
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                      </svg>
+                      All Steps
+                    </button>
+                  )}
+                  <button type="button"
+                    className={`btn-ghost btn-sm sep-toggle-btn${showSteps ? ' active' : ''}`}
+                    onClick={() => setShowSteps((p) => !p)}>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                      <rect x="9" y="3" width="6" height="4" rx="1" />
+                      <path d="M9 12h6M9 16h4" />
+                    </svg>
+                    Step-by-Step
+                  </button>
+                </div>
+              </div>
+
+              {/* Visualization canvas */}
+              <div className="viz-canvas-wrap">
+                <VisualizerCanvas algorithmKey={algorithmKey} baseArray={baseArray}
+                  vizState={vizState} steps={steps} stepIndex={stepIndex} algoMeta={algoMeta} />
+              </div>
+
+              {/* Step description banner */}
+              {activeStep && (
+                <div className="step-banner">
+                  <span className={`step-type-badge step-type-${activeStep.type?.toLowerCase()}`}>
+                    {activeStep.type}
+                  </span>
+                  <span className="step-banner-text">{activeStep.description}</span>
+                </div>
+              )}
+
+              {/* Playback controls */}
+              <PlaybackControls
+                stepIndex={stepIndex < 0 ? 0 : stepIndex}
+                totalSteps={steps.length}
+                isPlaying={isPlaying}
+                onPlay={handlePlay} onPause={handlePause}
+                onPrev={handlePrev} onNext={handleNext}
+                onRewind={handleRewind} onForward={handleForward}
+                onScrub={handleScrub}
+                speed={speedLevel} onSpeedChange={(v) => { setSpeedLevel(v); setIsPlaying(false) }}
+              />
+            </main>
+
+            {/* Right panel — step explanation */}
+            {showSteps && (
+              <aside className="viz-sidebar-right">
+                <StepsPanel steps={steps} currentIndex={stepIndex}
+                  onSelectStep={(i) => { setIsPlaying(false); seekTo(i) }}
+                  onClose={() => setShowSteps(false)} />
+              </aside>
+            )}
+          </div>
         </div>
+      )}
+
+      {/* All Steps Modal — rendered outside the layout so it overlays everything */}
+      {showAllSteps && (
+        <AllStepsModal
+          steps={steps}
+          algoName={algoInfo?.name ?? algorithmKey}
+          currentIndex={stepIndex}
+          onJumpTo={(i) => { setIsPlaying(false); seekTo(i); setShowAllSteps(false) }}
+          onClose={() => setShowAllSteps(false)}
+        />
       )}
     </div>
   )
