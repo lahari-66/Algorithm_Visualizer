@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Navbar from '../components/Navbar.jsx'
 import VisualizerCanvas from '../components/VisualizerCanvas.jsx'
 import PlaybackControls from '../components/PlaybackControls.jsx'
-import StepsPanel from '../components/StepsPanel.jsx'
 import StatisticsPanel from '../components/StatisticsPanel.jsx'
 import StepTutor from '../components/StepTutor.jsx'
 import CompareView from '../components/CompareView.jsx'
@@ -86,10 +85,24 @@ function deriveState(steps, array, idx) {
 // ── Compact top-bar input controls ──────────────────────────────
 function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, onSizeChange,
                   customInput, onCustomInput, onApplyCustom, targetValue, onTargetChange,
-                  speedLevel, onSpeedChange, onStart, onReset, isRunning, error }) {
+                  speedLevel, onSpeedChange, onStart, onReset, onOpenStepGuide, hasSteps, isRunning, error }) {
   const algo = ALL_ALGOS.find((a) => a.key === algorithmKey)
   const isSearch = algo?.type === 'search'
   const isArray  = algo?.type === 'sort' || algo?.type === 'search'
+  const [sizeInput, setSizeInput] = useState(String(arraySize))
+
+  useEffect(() => {
+    setSizeInput(String(arraySize))
+  }, [arraySize])
+
+  const handleApplySize = () => {
+    const parsed = Number(sizeInput)
+    if (Number.isNaN(parsed)) {
+      setSizeInput(String(arraySize))
+      return
+    }
+    onSizeChange(parsed)
+  }
 
   return (
     <div className="topbar">
@@ -113,10 +126,18 @@ function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, o
         <>
           <div className="topbar-divider" />
           <div className="topbar-group">
-            <label className="topbar-label">Size: {arraySize}</label>
-            <input type="range" min="4" max="50" value={arraySize}
-              className="topbar-slider" onChange={(e) => onSizeChange(Number(e.target.value))}
-              disabled={isRunning} />
+            <label className="topbar-label">Array Size (4-50)</label>
+            <input
+              type="number"
+              min="4"
+              max="50"
+              className="topbar-text topbar-size-input"
+              value={sizeInput}
+              onChange={(e) => setSizeInput(e.target.value)}
+              onBlur={handleApplySize}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplySize()}
+              disabled={isRunning}
+            />
           </div>
           <div className="topbar-group topbar-custom">
             <label className="topbar-label">Custom</label>
@@ -159,9 +180,18 @@ function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, o
 
       {/* Actions */}
       <div className="topbar-actions">
+        <button
+          type="button"
+          className="topbar-btn topbar-btn-ghost"
+          onClick={onOpenStepGuide}
+          disabled={!hasSteps}
+          title={hasSteps ? 'Open full-screen step notes' : 'Run Start to generate step notes'}
+        >
+          📝 Notes
+        </button>
         {isArray && (
           <button type="button" className="topbar-btn topbar-btn-ghost"
-            onClick={() => onArrayChange(generateRandomArray(arraySize, 8, 100))}
+            onClick={onArrayChange}
             disabled={isRunning} title="Random array">
             🎲
           </button>
@@ -210,11 +240,22 @@ export default function VisualizerPage() {
   const [algoMeta, setAlgoMeta] = useState(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [baseArray, setBaseArray] = useState([])
-  const [showSteps, setShowSteps] = useState(false)
   const [showAllSteps, setShowAllSteps] = useState(false)
   const [hasRun, setHasRun] = useState(false)
 
   const playRef = useRef(null)
+
+  const clearRunStateForNewInput = useCallback(() => {
+    setIsPlaying(false)
+    setSteps([])
+    setStepIndex(-1)
+    setVizState(null)
+    setAlgoMeta(null)
+    setElapsedMs(0)
+    setBaseArray([])
+    setShowAllSteps(false)
+    setHasRun(false)
+  }, [])
 
   useEffect(() => { applyTheme(theme) }, [theme])
 
@@ -247,11 +288,13 @@ export default function VisualizerPage() {
   }, [isPlaying, speedLevel, steps, baseArray, algorithmKey])
 
   const handleSizeChange = (n) => {
+    if (!Number.isFinite(n)) return
     const clamped = Math.max(4, Math.min(50, n))
     setArraySize(clamped)
     setArray(generateRandomArray(clamped, 8, 100))
     setCustomInput('')
     setInputError('')
+    clearRunStateForNewInput()
   }
 
   const handleApplyCustom = () => {
@@ -261,6 +304,14 @@ export default function VisualizerPage() {
     setArray(parsed)
     setArraySize(parsed.length)
     setInputError('')
+    clearRunStateForNewInput()
+  }
+
+  const handleRandomArray = () => {
+    setArray(generateRandomArray(arraySize, 8, 100))
+    setCustomInput('')
+    setInputError('')
+    clearRunStateForNewInput()
   }
 
   const handleStart = () => {
@@ -278,15 +329,17 @@ export default function VisualizerPage() {
     const elapsed = Math.round(performance.now() - t0)
 
     const { steps: nextSteps, ...meta } = result
+    const hasSteps = Array.isArray(nextSteps) && nextSteps.length > 0
     setBaseArray(workingArray)
     setSteps(nextSteps)
     setElapsedMs(elapsed)
     setAlgoMeta(meta)
-    setStepIndex(-1)
-    setVizState(null)
+    setStepIndex(hasSteps ? 0 : -1)
+    setVizState(hasSteps && ['bar','cell','merge','heap'].includes(ALGO_MAP[algorithmKey]?.viz)
+      ? deriveState(nextSteps, workingArray, 0)
+      : null)
     setIsPlaying(false)
     setHasRun(true)
-    setShowSteps(false)
   }
 
   const handleReset = () => {
@@ -296,10 +349,16 @@ export default function VisualizerPage() {
     setVizState(null)
     setAlgoMeta(null)
     setHasRun(false)
-    setShowSteps(false)
     setShowAllSteps(false)
     setInputError('')
   }
+
+  const stepSnapshots = useMemo(() => {
+    if (!showAllSteps || !steps.length || !baseArray.length) return []
+    const vizKind = ALGO_MAP[algorithmKey]?.viz
+    if (!['bar', 'cell', 'merge', 'heap'].includes(vizKind)) return []
+    return steps.map((_, i) => deriveState(steps, baseArray, i))
+  }, [showAllSteps, steps, baseArray, algorithmKey])
 
   const handlePlay    = () => { if (stepIndex >= steps.length - 1) seekTo(0); setIsPlaying(true) }
   const handlePause   = () => setIsPlaying(false)
@@ -332,7 +391,7 @@ export default function VisualizerPage() {
             algorithmKey={algorithmKey}
             onAlgoChange={(k) => { setAlgorithmKey(k); handleReset() }}
             array={array}
-            onArrayChange={setArray}
+            onArrayChange={handleRandomArray}
             arraySize={arraySize}
             onSizeChange={handleSizeChange}
             customInput={customInput}
@@ -344,6 +403,8 @@ export default function VisualizerPage() {
             onSpeedChange={setSpeedLevel}
             onStart={handleStart}
             onReset={handleReset}
+            onOpenStepGuide={() => setShowAllSteps(true)}
+            hasSteps={steps.length > 0}
             isRunning={isPlaying}
             error={inputError}
           />
@@ -352,7 +413,7 @@ export default function VisualizerPage() {
           {isArray && !hasRun && <ArrayStrip array={array} />}
 
           {/* ── Main content ── */}
-          <div className={`viz-layout${showSteps ? ' viz-layout-with-panel' : ''}`}>
+          <div className="viz-layout">
             {/* Left sidebar — stats */}
             <aside className="viz-sidebar-left">
               <StatisticsPanel algorithmKey={algorithmKey} comparisons={comparisons}
@@ -364,28 +425,6 @@ export default function VisualizerPage() {
             <main className="viz-center">
               <div className="viz-center-header">
                 <span className="viz-algo-name">{algoInfo?.name}</span>
-                <div className="viz-center-header-btns">
-                  {steps.length > 0 && (
-                    <button type="button"
-                      className="btn-ghost btn-sm asm-open-btn"
-                      onClick={() => setShowAllSteps(true)}>
-                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                      </svg>
-                      All Steps
-                    </button>
-                  )}
-                  <button type="button"
-                    className={`btn-ghost btn-sm sep-toggle-btn${showSteps ? ' active' : ''}`}
-                    onClick={() => setShowSteps((p) => !p)}>
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                      <rect x="9" y="3" width="6" height="4" rx="1" />
-                      <path d="M9 12h6M9 16h4" />
-                    </svg>
-                    Step-by-Step
-                  </button>
-                </div>
               </div>
 
               {/* Visualization canvas */}
@@ -417,14 +456,6 @@ export default function VisualizerPage() {
               />
             </main>
 
-            {/* Right panel — step explanation */}
-            {showSteps && (
-              <aside className="viz-sidebar-right">
-                <StepsPanel steps={steps} currentIndex={stepIndex}
-                  onSelectStep={(i) => { setIsPlaying(false); seekTo(i) }}
-                  onClose={() => setShowSteps(false)} />
-              </aside>
-            )}
           </div>
         </div>
       )}
@@ -434,6 +465,8 @@ export default function VisualizerPage() {
         <AllStepsModal
           steps={steps}
           algoName={algoInfo?.name ?? algorithmKey}
+          algoViz={algoInfo?.viz}
+          stepSnapshots={stepSnapshots}
           currentIndex={stepIndex}
           onJumpTo={(i) => { setIsPlaying(false); seekTo(i); setShowAllSteps(false) }}
           onClose={() => setShowAllSteps(false)}

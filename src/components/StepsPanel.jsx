@@ -15,11 +15,12 @@ const TYPE_META = {
   DONE:         { color: '#34d399', label: 'Done',       icon: '★' },
 }
 
-function StepItem({ step, index, isActive, onClick, ref: refProp }) {
+function StepItem({ step, index, isActive, onClick, itemRef }) {
   const meta = TYPE_META[step.type] ?? { color: '#94a3b8', label: step.type, icon: '·' }
+  const description = step.description ?? `${meta.label} step`
   return (
     <button
-      ref={refProp}
+      ref={itemRef}
       type="button"
       className={`sep-step-item${isActive ? ' active' : ''}`}
       onClick={onClick}
@@ -40,7 +41,7 @@ function StepItem({ step, index, isActive, onClick, ref: refProp }) {
         >
           {meta.label}
         </span>
-        <p className="sep-step-desc">{step.description}</p>
+        <p className="sep-step-desc">{description}</p>
         {step.indices?.length > 0 && step.indices[0] >= 0 && (
           <div className="sep-step-indices">
             {step.indices.map((idx) => (
@@ -106,7 +107,7 @@ export default function StepsPanel({ steps, currentIndex, onSelectStep, onClose 
               step={step}
               index={i}
               isActive={i === currentIndex}
-              refProp={i === currentIndex ? activeRef : null}
+              itemRef={i === currentIndex ? activeRef : null}
               onClick={() => onSelectStep(i)}
             />
           ))

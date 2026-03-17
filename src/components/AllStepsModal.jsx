@@ -15,6 +15,23 @@ const TYPE_META = {
   DONE:         { color: '#34d399', label: 'Done',       icon: '★' },
 }
 
+const STEP_EXPLANATIONS = {
+  COMPARE: () => 'Compare highlighted elements to decide which order is correct.',
+  SWAP: () => 'Swap the two active positions. This pushes values toward their correct places.',
+  SORTED: () => 'This position is finalized and will not change again.',
+  FOUND: (step) => step.description?.includes('not found')
+    ? 'Search ended without a match in the current data.'
+    : 'Target value found at the highlighted position.',
+  OVERWRITE: () => 'Write a value to the selected index as part of reconstruction/merge.',
+  RANGE: () => 'Only the highlighted range is currently being processed.',
+  POINTER_MOVE: () => 'Pointers moved to track the next positions to inspect.',
+  VISIT: () => 'Visit this node/cell and mark it in traversal order.',
+  ENQUEUE: () => 'Add this item to the queue/frontier for future processing.',
+  DEQUEUE: () => 'Remove the next item from the queue/frontier to process now.',
+  BACKTRACK: () => 'Backtrack to explore another branch/path.',
+  DONE: () => 'Algorithm completed for this run.',
+}
+
 // Group consecutive steps of the same type into phases for the summary
 function buildPhases(steps) {
   const phases = []
@@ -31,7 +48,42 @@ function buildPhases(steps) {
   return phases
 }
 
-export default function AllStepsModal({ steps, algoName, currentIndex, onJumpTo, onClose }) {
+function MiniStepVisual({ step, snapshot }) {
+  if (!snapshot?.values?.length) return null
+
+  const [start, end] = snapshot.activeRange ?? [0, snapshot.values.length - 1]
+  const visible = snapshot.values.slice(0, 18)
+
+  return (
+    <div className="asm-mini-wrap" aria-hidden="true">
+      <div className="asm-mini-array">
+        {visible.map((value, i) => {
+          const isAction = snapshot.actionIndices?.includes(i)
+          const isSorted = snapshot.sortedIndices?.includes(i)
+          const isFound = snapshot.foundIndex === i
+          const isDim = i < start || i > end
+          let cls = 'asm-mini-cell'
+          if (isAction) cls += ' action'
+          else if (isFound) cls += ' found'
+          else if (isSorted) cls += ' sorted'
+          if (isDim) cls += ' dim'
+          return (
+            <span key={`${i}-${value}`} className={cls}>
+              <span className="asm-mini-idx">{i}</span>
+              <span className="asm-mini-val">{value}</span>
+            </span>
+          )
+        })}
+        {snapshot.values.length > visible.length && <span className="asm-mini-more">+{snapshot.values.length - visible.length}</span>}
+      </div>
+      {step.indices?.length === 2 && step.indices[0] >= 0 && (
+        <div className="asm-mini-arrow">[{step.indices[0]}] → [{step.indices[1]}]</div>
+      )}
+    </div>
+  )
+}
+
+export default function AllStepsModal({ steps, algoName, currentIndex, onJumpTo, onClose, stepSnapshots = [], algoViz }) {
   const [filter, setFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const activeRef = useRef(null)
@@ -77,7 +129,7 @@ export default function AllStepsModal({ steps, algoName, currentIndex, onJumpTo,
           <div className="asm-header-left">
             <span className="asm-icon">📋</span>
             <div>
-              <div className="asm-title">Complete Step Log</div>
+              <div className="asm-title">Step Guide (Full Screen)</div>
               <div className="asm-subtitle">{algoName} · {steps.length} steps total</div>
             </div>
           </div>
@@ -167,6 +219,8 @@ export default function AllStepsModal({ steps, algoName, currentIndex, onJumpTo,
               const i = step._i
               const meta = TYPE_META[step.type] ?? { color: '#94a3b8', label: step.type, icon: '·' }
               const isActive = i === currentIndex
+              const detail = STEP_EXPLANATIONS[step.type]?.(step) ?? 'Follow this operation and observe highlighted elements.'
+              const snapshot = stepSnapshots[i]
               return (
                 <button
                   key={i}
@@ -191,19 +245,23 @@ export default function AllStepsModal({ steps, algoName, currentIndex, onJumpTo,
                     {meta.label}
                   </span>
 
-                  {/* Description */}
-                  <span className="asm-row-desc">{step.description}</span>
+                  <div className="asm-row-main">
+                    <span className="asm-row-desc">{step.description ?? `${meta.label} step`}</span>
+                    <span className="asm-row-explain">{detail}</span>
 
-                  {/* Indices */}
-                  {step.indices?.length > 0 && step.indices[0] >= 0 && (
-                    <span className="asm-row-indices">
-                      {step.indices.map((idx) => (
-                        <span key={idx} className="asm-row-idx">[{idx}]</span>
-                      ))}
-                    </span>
-                  )}
+                    {step.indices?.length > 0 && step.indices[0] >= 0 && (
+                      <span className="asm-row-indices">
+                        {step.indices.map((idx) => (
+                          <span key={idx} className="asm-row-idx">[{idx}]</span>
+                        ))}
+                      </span>
+                    )}
 
-                  {/* Active indicator */}
+                    {['bar', 'cell', 'merge', 'heap'].includes(algoViz) && snapshot ? (
+                      <MiniStepVisual step={step} snapshot={snapshot} />
+                    ) : null}
+                  </div>
+
                   {isActive && <span className="asm-row-here">← here</span>}
                 </button>
               )

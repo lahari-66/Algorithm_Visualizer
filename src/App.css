@@ -1727,6 +1727,8 @@
 
 .topbar-target { width: 72px; }
 
+.topbar-size-input { width: 82px; }
+
 .topbar-apply {
   padding: 6px 10px;
   border-radius: 8px;
@@ -2206,8 +2208,8 @@
 
 .asm-modal {
   width: 100%;
-  max-width: 780px;
-  max-height: 90vh;
+  max-width: 1200px;
+  max-height: 94vh;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 24px;
@@ -2360,9 +2362,9 @@
 .asm-row {
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 11px 12px;
   border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
@@ -2400,9 +2402,22 @@
 .asm-row-desc {
   font-size: 13px;
   color: var(--text);
-  line-height: 1.4;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.asm-row-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.asm-row-explain {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
 }
 .asm-row-indices {
   display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap;
@@ -2418,6 +2433,79 @@
   font-size: 10px; font-weight: 700;
   color: var(--accent); white-space: nowrap;
   flex-shrink: 0;
+}
+
+.asm-mini-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+  padding: 8px;
+}
+
+.asm-mini-array {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.asm-mini-cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: rgba(148,163,184,0.1);
+  color: var(--text);
+}
+
+.asm-mini-cell.action {
+  border-color: rgba(251,191,36,0.45);
+  background: rgba(251,191,36,0.14);
+  color: #fbbf24;
+}
+
+.asm-mini-cell.sorted {
+  border-color: rgba(52,211,153,0.45);
+  background: rgba(52,211,153,0.14);
+  color: #34d399;
+}
+
+.asm-mini-cell.found {
+  border-color: rgba(56,189,248,0.45);
+  background: rgba(56,189,248,0.14);
+  color: #38bdf8;
+}
+
+.asm-mini-cell.dim {
+  opacity: 0.45;
+}
+
+.asm-mini-idx {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.asm-mini-val {
+  font-size: 11px;
+  font-family: var(--mono);
+  font-weight: 700;
+}
+
+.asm-mini-more {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.asm-mini-arrow {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--mono);
 }
 
 /* Footer */
