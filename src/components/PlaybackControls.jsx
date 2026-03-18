@@ -11,6 +11,10 @@ function PlaybackControls({
   onScrub,
   speed,
   onSpeedChange,
+  soundEnabled,
+  onToggleSound,
+  soundVolume,
+  onSoundVolumeChange,
 }) {
   const progress = totalSteps > 1 ? (stepIndex / (totalSteps - 1)) * 100 : 0
   const hasSteps = totalSteps > 0
@@ -86,6 +90,28 @@ function PlaybackControls({
             className="pb-speed-slider"
           />
           <span className="pb-speed-val">{['Slow','Med','Fast','Blaze'][speed]}</span>
+        </div>
+
+        <div className="pb-sound">
+          <button
+            type="button"
+            className={`pb-sound-toggle${soundEnabled ? ' active' : ''}`}
+            onClick={onToggleSound}
+            title={soundEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+          >
+            {soundEnabled ? 'Sound On' : 'Sound Off'}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={soundVolume}
+            disabled={!soundEnabled}
+            onChange={(e) => onSoundVolumeChange(Number(e.target.value))}
+            className="pb-sound-slider"
+            aria-label="Sound volume"
+          />
         </div>
       </div>
     </div>

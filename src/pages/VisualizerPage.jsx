@@ -24,6 +24,7 @@ import { bstOperationsSteps }       from '../algorithms/bstOperations.js'
 import { aStarSteps }               from '../algorithms/aStar.js'
 import { mazeSolverSteps }          from '../algorithms/mazeSolver.js'
 import { generateRandomArray, parseInputToArray } from '../utils/arrayGenerator.js'
+import { createSoundEngine } from '../utils/soundEffects.js'
 import { applyTheme } from '../theme.js'
 
 const ALGO_MAP = {
@@ -242,8 +243,12 @@ export default function VisualizerPage() {
   const [baseArray, setBaseArray] = useState([])
   const [showAllSteps, setShowAllSteps] = useState(false)
   const [hasRun, setHasRun] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [soundVolume, setSoundVolume] = useState(0.35)
 
   const playRef = useRef(null)
+  const soundRef = useRef(null)
+  const prevStepRef = useRef(-1)
 
   const clearRunStateForNewInput = useCallback(() => {
     setIsPlaying(false)
@@ -258,6 +263,30 @@ export default function VisualizerPage() {
   }, [])
 
   useEffect(() => { applyTheme(theme) }, [theme])
+
+  useEffect(() => {
+    soundRef.current = createSoundEngine()
+    return () => soundRef.current?.dispose()
+  }, [])
+
+  useEffect(() => {
+    soundRef.current?.setVolume(soundEnabled ? soundVolume : 0)
+  }, [soundEnabled, soundVolume])
+
+  useEffect(() => {
+    if (!soundEnabled || stepIndex < 0 || !steps.length) return
+    const prev = prevStepRef.current
+    prevStepRef.current = stepIndex
+    if (prev === stepIndex) return
+
+    const active = steps[stepIndex]
+    if (!active) return
+    soundRef.current?.playStepSound(active.type, { emphasis: isPlaying ? 0.9 : 1.1 })
+  }, [stepIndex, steps, soundEnabled, isPlaying])
+
+  useEffect(() => {
+    if (stepIndex < 0) prevStepRef.current = -1
+  }, [stepIndex])
 
   const seekTo = useCallback((idx) => {
     if (!steps.length) return
@@ -360,13 +389,39 @@ export default function VisualizerPage() {
     return steps.map((_, i) => deriveState(steps, baseArray, i))
   }, [showAllSteps, steps, baseArray, algorithmKey])
 
-  const handlePlay    = () => { if (stepIndex >= steps.length - 1) seekTo(0); setIsPlaying(true) }
-  const handlePause   = () => setIsPlaying(false)
-  const handlePrev    = () => { setIsPlaying(false); seekTo(Math.max(0, stepIndex - 1)) }
-  const handleNext    = () => { setIsPlaying(false); seekTo(Math.min(steps.length - 1, stepIndex + 1)) }
-  const handleRewind  = () => { setIsPlaying(false); seekTo(0) }
-  const handleForward = () => { setIsPlaying(false); seekTo(steps.length - 1) }
-  const handleScrub   = (v) => { setIsPlaying(false); seekTo(v) }
+  const handlePlay = () => {
+    if (stepIndex >= steps.length - 1) seekTo(0)
+    setIsPlaying(true)
+    if (soundEnabled) soundRef.current?.playUiSound('play')
+  }
+  const handlePause = () => {
+    setIsPlaying(false)
+    if (soundEnabled) soundRef.current?.playUiSound('pause')
+  }
+  const handlePrev = () => {
+    setIsPlaying(false)
+    seekTo(Math.max(0, stepIndex - 1))
+    if (soundEnabled) soundRef.current?.playUiSound('click')
+  }
+  const handleNext = () => {
+    setIsPlaying(false)
+    seekTo(Math.min(steps.length - 1, stepIndex + 1))
+    if (soundEnabled) soundRef.current?.playUiSound('click')
+  }
+  const handleRewind = () => {
+    setIsPlaying(false)
+    seekTo(0)
+    if (soundEnabled) soundRef.current?.playUiSound('click')
+  }
+  const handleForward = () => {
+    setIsPlaying(false)
+    seekTo(steps.length - 1)
+    if (soundEnabled) soundRef.current?.playUiSound('click')
+  }
+  const handleScrub = (v) => {
+    setIsPlaying(false)
+    seekTo(v)
+  }
 
   const algoInfo   = ALGO_MAP[algorithmKey]
   const activeStep = steps[stepIndex] ?? null
@@ -453,6 +508,16 @@ export default function VisualizerPage() {
                 onRewind={handleRewind} onForward={handleForward}
                 onScrub={handleScrub}
                 speed={speedLevel} onSpeedChange={(v) => { setSpeedLevel(v); setIsPlaying(false) }}
+                soundEnabled={soundEnabled}
+                onToggleSound={() => {
+                  setSoundEnabled((prev) => {
+                    const next = !prev
+                    if (next) soundRef.current?.playUiSound('click')
+                    return next
+                  })
+                }}
+                soundVolume={soundVolume}
+                onSoundVolumeChange={setSoundVolume}
               />
             </main>
 

@@ -7,6 +7,7 @@ An interactive React application that visualizes data structures and algorithms 
 - Searching visualizations: Linear, Binary (auto-sorts input)
 - Dynamic array bars with compare, swap, sorted, and found states
 - Speed control, pause/resume, reset, and custom input
+- Built-in sound effects with mute toggle and volume control
 - Step explanation panel and complexity display
 
 ## Getting Started
