@@ -31,6 +31,13 @@ const PSEUDOCODE = {
     '  swap root with arr[end]',
     '  heapify(0, end)',
   ],
+  shell: [
+    'gap = floor(n/2)',
+    'while gap > 0',
+    '  compare elements gap apart',
+    '  swap while left > right',
+    '  gap = floor(gap/2)',
+  ],
   linear: [
     'for i from 0 to n-1',
     '  if arr[i] == target return i',

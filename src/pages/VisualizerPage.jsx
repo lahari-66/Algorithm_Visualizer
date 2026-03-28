@@ -6,6 +6,7 @@ import StatisticsPanel from '../components/StatisticsPanel.jsx'
 import StepTutor from '../components/StepTutor.jsx'
 import CompareView from '../components/CompareView.jsx'
 import AllStepsModal from '../components/AllStepsModal.jsx'
+import AlgorithmPlaybookPanel from '../components/AlgorithmPlaybookPanel.jsx'
 import { ALGORITHM_CATEGORIES } from '../components/InputStage.jsx'
 import { bubbleSortSteps }          from '../algorithms/bubbleSort.js'
 import { selectionSortSteps }       from '../algorithms/selectionSort.js'
@@ -14,6 +15,7 @@ import { mergeSortSteps }           from '../algorithms/mergeSort.js'
 import { quickSortSteps }           from '../algorithms/quickSort.js'
 import { heapSortSteps }            from '../algorithms/heapSort.js'
 import { countingSortSteps }        from '../algorithms/countingSort.js'
+import { shellSortSteps }           from '../algorithms/shellSort.js'
 import { linearSearchSteps }        from '../algorithms/linearSearch.js'
 import { binarySearchSteps }        from '../algorithms/binarySearch.js'
 import { bfsSteps }                 from '../algorithms/bfs.js'
@@ -35,6 +37,7 @@ const ALGO_MAP = {
   quick:     { name: 'Quick Sort',     viz: 'bar',   getSteps: (a)     => quickSortSteps(a) },
   heap:      { name: 'Heap Sort',      viz: 'heap',  getSteps: (a)     => heapSortSteps(a) },
   counting:  { name: 'Counting Sort',  viz: 'bar',   getSteps: (a)     => countingSortSteps(a) },
+  shell:     { name: 'Shell Sort',     viz: 'bar',   getSteps: (a)     => shellSortSteps(a) },
   linear:    { name: 'Linear Search',  viz: 'cell',  getSteps: (a, tv) => linearSearchSteps(a, tv) },
   binary:    { name: 'Binary Search',  viz: 'cell',  getSteps: (a, tv) => binarySearchSteps(a, tv) },
   bfs:       { name: 'BFS',            viz: 'graph', getSteps: ()      => bfsSteps() },
@@ -220,7 +223,7 @@ function ArrayStrip({ array }) {
   )
 }
 
-export default function VisualizerPage() {
+export default function VisualizerPage({ onShowTheory }) {
   const [theme, setTheme] = useState('dark')
   const [compareMode, setCompareMode] = useState(false)
 
@@ -433,7 +436,8 @@ export default function VisualizerPage() {
   return (
     <div className="app-shell">
       <Navbar theme={theme} onThemeChange={setTheme} onHome={handleReset}
-        compareMode={compareMode} onToggleCompare={() => setCompareMode((p) => !p)} />
+        compareMode={compareMode} onToggleCompare={() => setCompareMode((p) => !p)}
+        onShowTheory={onShowTheory} />
 
       {compareMode ? (
         <div className="compare-mode-wrap">
@@ -518,6 +522,11 @@ export default function VisualizerPage() {
                 }}
                 soundVolume={soundVolume}
                 onSoundVolumeChange={setSoundVolume}
+              />
+
+              <AlgorithmPlaybookPanel
+                algorithmKey={algorithmKey}
+                algorithmName={algoInfo?.name ?? algorithmKey}
               />
             </main>
 

@@ -14,6 +14,7 @@ export const ALGORITHM_CATEGORIES = [
       { key: 'quick',     label: 'Quick Sort',      complexity: 'O(n log n)',  difficulty: 'Intermediate', type: 'sort' },
       { key: 'heap',      label: 'Heap Sort',       complexity: 'O(n log n)',  difficulty: 'Intermediate', type: 'sort' },
       { key: 'counting',  label: 'Counting Sort',   complexity: 'O(n + k)',    difficulty: 'Intermediate', type: 'sort' },
+      { key: 'shell',     label: 'Shell Sort',      complexity: 'O(n^(3/2))',  difficulty: 'Intermediate', type: 'sort' },
     ],
   },
   {

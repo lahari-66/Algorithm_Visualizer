@@ -577,6 +577,76 @@
   cursor: not-allowed;
 }
 
+/* Algorithm playbook */
+.playbook-panel {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.playbook-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.playbook-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-family: var(--heading);
+  color: var(--text);
+}
+
+.playbook-name {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.playbook-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playbook-block h3 {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.playbook-block p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.playbook-block ol {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+}
+
+.playbook-block li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
 /* ── Compare View ──────────────────────────────────────────────── */
 .compare-mode-wrap { flex: 1; padding: 24px; overflow-y: auto; }
 
@@ -2585,5 +2655,62 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+
+
+/* Theory Page Wrapper */
+.theory-page-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+/* Back to Visualizer Button */
+.back-to-visualizer-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.2s;
+  z-index: 50;
+}
+
+.back-to-visualizer-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.6);
+}
+
+.back-to-visualizer-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .back-to-visualizer-btn {
+    bottom: 1rem;
+    right: 1rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .back-to-visualizer-btn {
+    bottom: 0.75rem;
+    right: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
 }
 

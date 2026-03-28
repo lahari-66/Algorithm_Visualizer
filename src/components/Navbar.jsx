@@ -1,6 +1,6 @@
 import { THEMES } from '../theme.js'
 
-function Navbar({ theme, onThemeChange, onHome, compareMode, onToggleCompare }) {
+function Navbar({ theme, onThemeChange, onHome, compareMode, onToggleCompare, onShowTheory }) {
   return (
     <nav className="navbar">
       <div className="navbar-left">
@@ -17,6 +17,20 @@ function Navbar({ theme, onThemeChange, onHome, compareMode, onToggleCompare }) 
       </div>
 
       <div className="navbar-right">
+        <button
+          type="button"
+          className="nav-btn"
+          onClick={onShowTheory}
+          title="View algorithm theory and reference"
+          aria-label="Algorithm Theory"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          Theory
+        </button>
+
         <button
           type="button"
           className={`nav-btn${compareMode ? ' active' : ''}`}

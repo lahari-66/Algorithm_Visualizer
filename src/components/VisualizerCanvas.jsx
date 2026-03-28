@@ -6,7 +6,7 @@ import GraphVisualizer from './GraphVisualizer.jsx'
 import TreeVisualizer from './TreeVisualizer.jsx'
 import PathVisualizer from './PathVisualizer.jsx'
 
-const BAR_ALGOS   = new Set(['bubble', 'quick', 'insertion', 'selection', 'counting'])
+const BAR_ALGOS   = new Set(['bubble', 'quick', 'insertion', 'selection', 'counting', 'shell'])
 const CELL_ALGOS  = new Set(['linear', 'binary'])
 const MERGE_ALGOS = new Set(['merge'])
 const HEAP_ALGOS  = new Set(['heap'])

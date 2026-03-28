@@ -29,6 +29,12 @@ const ALGORITHM_GROUPS = [
         description: 'Tree-based sorting using heap properties.',
         complexity: 'O(n log n)',
       },
+      {
+        key: 'shell',
+        name: 'Shell Sort',
+        description: 'Gap-based insertion sort for faster partial ordering.',
+        complexity: 'O(n^(3/2)) avg',
+      },
     ],
   },
   {
