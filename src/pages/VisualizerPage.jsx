@@ -28,6 +28,7 @@ import { mazeSolverSteps }          from '../algorithms/mazeSolver.js'
 import { generateRandomArray, parseInputToArray } from '../utils/arrayGenerator.js'
 import { createSoundEngine } from '../utils/soundEffects.js'
 import { applyTheme } from '../theme.js'
+import { ALGORITHM_THEORY } from '../data/algorithmTheory.js'
 
 const ALGO_MAP = {
   bubble:    { name: 'Bubble Sort',    viz: 'bar',   getSteps: (a)     => bubbleSortSteps(a) },
@@ -52,6 +53,17 @@ const ALGO_MAP = {
 const ALL_ALGOS = ALGORITHM_CATEGORIES.flatMap((c) => c.algorithms)
 const SPEED_MS  = [1400, 700, 300, 120]
 const ACTION_TYPES = new Set(['COMPARE', 'SWAP', 'OVERWRITE'])
+
+function summarizeOperations(steps) {
+  let comparisons = 0
+  let swaps = 0
+  for (const step of steps ?? []) {
+    if (!step) continue
+    if (step.type === 'COMPARE') comparisons++
+    if (step.type === 'SWAP' || step.type === 'OVERWRITE') swaps++
+  }
+  return { comparisons, swaps, operations: comparisons + swaps }
+}
 
 function deriveState(steps, array, idx) {
   const values = [...array]
@@ -89,7 +101,8 @@ function deriveState(steps, array, idx) {
 // ── Compact top-bar input controls ──────────────────────────────
 function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, onSizeChange,
                   customInput, onCustomInput, onApplyCustom, targetValue, onTargetChange,
-                  speedLevel, onSpeedChange, onStart, onReset, onOpenStepGuide, hasSteps, isRunning, error }) {
+                  speedLevel, onSpeedChange, onStart, onReset, onOpenStepGuide,
+                  onOpenComplexityTable, hasSteps, isRunning, error }) {
   const algo = ALL_ALGOS.find((a) => a.key === algorithmKey)
   const isSearch = algo?.type === 'search'
   const isArray  = algo?.type === 'sort' || algo?.type === 'search'
@@ -193,6 +206,14 @@ function TopBar({ algorithmKey, onAlgoChange, array, onArrayChange, arraySize, o
         >
           📝 Notes
         </button>
+        <button
+          type="button"
+          className="topbar-btn topbar-btn-ghost"
+          onClick={onOpenComplexityTable}
+          title="View all algorithm complexities"
+        >
+          Complexity Table
+        </button>
         {isArray && (
           <button type="button" className="topbar-btn topbar-btn-ghost"
             onClick={onArrayChange}
@@ -223,9 +244,64 @@ function ArrayStrip({ array }) {
   )
 }
 
+function ComplexityTableModal({ rows, onClose }) {
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
+
+  return (
+    <div className="cxm-backdrop" onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="cxm-modal" role="dialog" aria-modal="true" aria-label="Algorithm complexity table">
+        <div className="cxm-header">
+          <div>
+            <h3>Algorithm Complexity Table</h3>
+            <p>Best, average, worst time and space complexity for all algorithms.</p>
+          </div>
+          <button type="button" className="cxm-close" onClick={onClose} aria-label="Close complexity table">
+            x
+          </button>
+        </div>
+
+        <div className="cxm-table-wrap">
+          <table className="cxm-table">
+            <thead>
+              <tr>
+                <th>Algorithm</th>
+                <th>Category</th>
+                <th>Best</th>
+                <th>Average</th>
+                <th>Worst</th>
+                <th>Space</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key}>
+                  <td>{row.name}</td>
+                  <td>{row.category}</td>
+                  <td>{row.best}</td>
+                  <td>{row.average}</td>
+                  <td>{row.worst}</td>
+                  <td>{row.space}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function VisualizerPage({ onShowTheory }) {
   const [theme, setTheme] = useState('dark')
   const [compareMode, setCompareMode] = useState(false)
+  const [sidebarTab, setSidebarTab] = useState('stats')
+  const [showComplexityTable, setShowComplexityTable] = useState(false)
 
   // Input state
   const [algorithmKey, setAlgorithmKey] = useState('bubble')
@@ -248,6 +324,7 @@ export default function VisualizerPage({ onShowTheory }) {
   const [hasRun, setHasRun] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [soundVolume, setSoundVolume] = useState(0.35)
+  const [complexityHistory, setComplexityHistory] = useState({})
 
   const playRef = useRef(null)
   const soundRef = useRef(null)
@@ -362,6 +439,7 @@ export default function VisualizerPage({ onShowTheory }) {
 
     const { steps: nextSteps, ...meta } = result
     const hasSteps = Array.isArray(nextSteps) && nextSteps.length > 0
+    const summary = summarizeOperations(nextSteps)
     setBaseArray(workingArray)
     setSteps(nextSteps)
     setElapsedMs(elapsed)
@@ -372,6 +450,23 @@ export default function VisualizerPage({ onShowTheory }) {
       : null)
     setIsPlaying(false)
     setHasRun(true)
+
+    if (['bar', 'cell', 'merge', 'heap'].includes(ALGO_MAP[algorithmKey]?.viz)) {
+      const sample = {
+        n: workingArray.length,
+        comparisons: summary.comparisons,
+        swaps: summary.swaps,
+        operations: summary.operations,
+        timestamp: Date.now(),
+      }
+      setComplexityHistory((prev) => {
+        const existing = prev[algorithmKey] ?? []
+        return {
+          ...prev,
+          [algorithmKey]: [...existing, sample].slice(-24),
+        }
+      })
+    }
   }
 
   const handleReset = () => {
@@ -432,6 +527,20 @@ export default function VisualizerPage({ onShowTheory }) {
   const swaps       = vizState?.swaps ?? 0
   const algo        = ALL_ALGOS.find((a) => a.key === algorithmKey)
   const isArray     = algo?.type === 'sort' || algo?.type === 'search'
+  const complexityRows = useMemo(() => {
+    return ALL_ALGOS.map((item) => {
+      const theory = ALGORITHM_THEORY[item.key]
+      return {
+        key: item.key,
+        name: item.label,
+        category: item.type?.[0]?.toUpperCase() + item.type?.slice(1) || 'General',
+        best: theory?.complexity?.time?.best ?? 'N/A',
+        average: theory?.complexity?.time?.average ?? 'N/A',
+        worst: theory?.complexity?.time?.worst ?? 'N/A',
+        space: theory?.complexity?.space ?? 'N/A',
+      }
+    })
+  }, [])
 
   return (
     <div className="app-shell">
@@ -441,7 +550,7 @@ export default function VisualizerPage({ onShowTheory }) {
 
       {compareMode ? (
         <div className="compare-mode-wrap">
-          <CompareView array={baseArray.length ? baseArray : [8,3,5,1,9,2,7,4]} speed={speedLevel} />
+          <CompareView array={array} speed={speedLevel} />
         </div>
       ) : (
         <div className="viz-page">
@@ -463,6 +572,7 @@ export default function VisualizerPage({ onShowTheory }) {
             onStart={handleStart}
             onReset={handleReset}
             onOpenStepGuide={() => setShowAllSteps(true)}
+            onOpenComplexityTable={() => setShowComplexityTable(true)}
             hasSteps={steps.length > 0}
             isRunning={isPlaying}
             error={inputError}
@@ -473,11 +583,39 @@ export default function VisualizerPage({ onShowTheory }) {
 
           {/* ── Main content ── */}
           <div className="viz-layout">
-            {/* Left sidebar — stats */}
+            {/* Left sidebar — insights */}
             <aside className="viz-sidebar-left">
-              <StatisticsPanel algorithmKey={algorithmKey} comparisons={comparisons}
-                swaps={swaps} currentStep={stepIndex} totalSteps={steps.length} elapsedMs={elapsedMs} />
-              <StepTutor step={activeStep} stepIndex={stepIndex} />
+              <div className="viz-sidebar-tabs" role="tablist" aria-label="Insights panels">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sidebarTab === 'stats'}
+                  className={`viz-sidebar-tab-btn${sidebarTab === 'stats' ? ' active' : ''}`}
+                  onClick={() => setSidebarTab('stats')}
+                >
+                  Stats
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sidebarTab === 'step'}
+                  className={`viz-sidebar-tab-btn${sidebarTab === 'step' ? ' active' : ''}`}
+                  onClick={() => setSidebarTab('step')}
+                >
+                  Step Tutor
+                </button>
+              </div>
+
+              <div className="viz-sidebar-body">
+                {sidebarTab === 'stats' && (
+                  <StatisticsPanel algorithmKey={algorithmKey} comparisons={comparisons}
+                    swaps={swaps} currentStep={stepIndex} totalSteps={steps.length} elapsedMs={elapsedMs}
+                    complexitySamples={complexityHistory[algorithmKey] ?? []}
+                    currentInputSize={baseArray.length || array.length}
+                  />
+                )}
+                {sidebarTab === 'step' && <StepTutor step={activeStep} stepIndex={stepIndex} />}
+              </div>
             </aside>
 
             {/* Center — visualization + playback */}
@@ -544,6 +682,13 @@ export default function VisualizerPage({ onShowTheory }) {
           currentIndex={stepIndex}
           onJumpTo={(i) => { setIsPlaying(false); seekTo(i); setShowAllSteps(false) }}
           onClose={() => setShowAllSteps(false)}
+        />
+      )}
+
+      {showComplexityTable && (
+        <ComplexityTableModal
+          rows={complexityRows}
+          onClose={() => setShowComplexityTable(false)}
         />
       )}
     </div>
